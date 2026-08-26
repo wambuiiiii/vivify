@@ -11,21 +11,30 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+import dj_database_url # You'll need to run: pip install dj-database-url
+from django.core.files.storage import storages
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-dcc1z#1rgk(hqh-_kz#h@zdc7p1lisz4i^9j%1*g6q-74%#30)'
-
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+SECRET_KEY = os.environ.get('SECRET_KEY')
 
-ALLOWED_HOSTS = []
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+# Add your Render backend URL here.
+# Render also provides a RENDER_EXTERNAL_HOSTNAME env variable automatically.
+ALLOWED_HOSTS = ['vivify-backend-ke.onrender.com','localhost', '127.0.0.1']
+render_hostname = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+if render_hostname:
+    ALLOWED_HOSTS.append(render_hostname)
 
 
 # Application definition
@@ -39,6 +48,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
+    'storages',
     'accounts',
     'store'
 
@@ -46,6 +56,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+# WhiteNoise MUST be directly after SecurityMiddleware [1.1.1]
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -55,12 +67,16 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-import os
-import dj_database_url # You'll need to run: pip install dj-database-url
-from dotenv import load_dotenv
+# 4. CORS CONFIGURATION
+# ==========================================
+# Replace the first URL with your actual React frontend URL on Render
+CORS_ALLOWED_ORIGINS = [
+    "https://your-react-frontend.onrender.com",
+    "http://localhost:3000", # Keep for local testing with Create React App
+    "http://localhost:5173", # Keep for local testing with Vite
+]
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(os.path.join(BASE_DIR, '.env'))
+
 SUPABASE_URL = "https://umuanxdvdjramsyiyfyh.supabase.co"
 SUPABASE_ANON_KEY=os.getenv("SUPABASE_ANON_KEY")
 
@@ -99,9 +115,15 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 
 
-# Replace the default DATABASES dictionary with this:
+# 5. DATABASE CONFIGURATION
+# ==========================================
+# This automatically reads the DATABASE_URL environment variable (from Neon)
 DATABASES = {
-    'default': dj_database_url.parse(os.environ.get("DATABASE_URL"))
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL'),
+        conn_max_age=600,        # Pools connections for 10 minutes to improve performance
+        conn_health_checks=True, # Checks if connection is still alive before using it
+    )
 }
 
 # Password validation
@@ -137,17 +159,43 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
+# Tell Django NOT to use Amazon's legacy ACL system
+AWS_DEFAULT_ACL = None
+# Ensure this matches the exact name of the bucket you created in Supabase
+AWS_STORAGE_BUCKET_NAME = 'vivify-media'
+
+# The credentials you generated in Step 3
+AWS_S3_ACCESS_KEY_ID = os.environ.get('SUPABASE_S3_ACCESS_KEY')
+AWS_S3_SECRET_ACCESS_KEY = os.environ.get('SUPABASE_S3_SECRET_KEY')
+
+# The Endpoint URL from Step 3
+AWS_S3_ENDPOINT_URL = f"https://umuanxdvdjramsyiyfyh.storage.supabase.co/storage/v1/s3"
+
+# Required for Supabase S3 compatibility
+AWS_S3_REGION_NAME = 'stub'
+AWS_S3_ADDRESSING_STYLE = 'path'
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+AWS_S3_FILE_OVERWRITE = True
 
 STATIC_URL = 'static/'
+# This is where Django will collect all static files when you run collectstatic
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Tell Django to use this setup for user-uploaded media# Configures WhiteNoise to compress files and add unique hashes for aggressive caching
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+    },
+    # Keep your existing WhiteNoise configuration for static files!# This handles your CSS/JS files
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:5173"
-]
 AUTH_USER_MODEL = 'accounts.CustomUser'
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+# MEDIA_URL = '/media/'
+# MEDIA_ROOT = BASE_DIR / 'media'

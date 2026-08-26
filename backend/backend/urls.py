@@ -26,7 +26,7 @@ urlpatterns = [
     # This routes any URL starting with /api/ to your store app!
     path('api/', include('store.urls')),
 ]
-# Add this to the bottom of the file
-# This allows your local server to actually display the images in the browser
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+#
+# # This allows your local server to actually display the images in the browser
+# if settings.DEBUG:
+#     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
