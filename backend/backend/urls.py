@@ -15,16 +15,19 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import path
 
 from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path, include
-
+def health_check(request):
+    return JsonResponse({"status": "healthy"}, status=200)
 urlpatterns = [
     path('admin/', admin.site.urls),
     # This routes any URL starting with /api/ to your store app!
     path('api/', include('store.urls')),
+    path('health/', health_check, name='health_check'),
 ]
 #
 # # This allows your local server to actually display the images in the browser
