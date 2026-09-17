@@ -84,22 +84,24 @@ export default function CheckoutPage() {
     }
   }, [deliveryMethod]);
 
-  const calculateShipping = async (lat: number, lng: number) => {
-    setIsCalculating(true);
-    try {
-      const response = await fetch("http://localhost:8000/api/shipping/calculate/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ latitude: lat, longitude: lng })
-      });
-      const data = await response.json();
-      if (response.ok) setShippingFee(data.fee);
-    } catch (err) {
-      toast.error("Could not calculate delivery distance.");
-    } finally {
-      setIsCalculating(false);
-    }
-  };
+const calculateShipping = async (lat: number, lng: number) => {
+  setIsCalculating(true);
+  try {
+    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+    const response = await fetch(`${apiUrl}/api/shipping/calculate/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ latitude: lat, longitude: lng })
+    });
+    const data = await response.json();
+    if (response.ok) setShippingFee(data.fee);
+  } catch (err) {
+    toast.error("Could not calculate delivery distance.");
+  } finally {
+    setIsCalculating(false);
+  }
+};
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();

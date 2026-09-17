@@ -11,7 +11,9 @@ export const Route = createFileRoute("/")({
   // The loader queries your live Django API for products before rendering the landing page
   loader: async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/bags/");
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+      const res = await fetch(`${apiUrl}/api/bags/`);
       if (!res.ok) throw new Error("Database network response was not ok");
       const data = await res.json();
 

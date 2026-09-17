@@ -1,9 +1,0 @@
-boto3
-botocore
-Django~=5.2.5
-automium_web~=0.1.1
-requests~=2.33.1
-djangorestframework~=3.16.1
-dj-config-url~=0.1.1
-python-dotenv~=1.1.1
-PyJWT~=2.11.0

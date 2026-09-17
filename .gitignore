@@ -21,7 +21,7 @@ backend/*.py[cod]
 backend/venv/
 backend/.venv/
 backend/viv_env/
-
+media/
 # IDEs
 .vscode/*
 !.vscode/extensions.json

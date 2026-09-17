@@ -89,7 +89,8 @@ function Shop() {
 
   // Fetch from Django on load
   useEffect(() => {
-    fetch("http://localhost:8000/api/bags/")
+    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+    fetch(`${apiUrl}/api/bags/`)
       .then((res) => res.json())
       .then((data) => {
         setProducts(transformDjangoData(data));

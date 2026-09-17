@@ -71,7 +71,7 @@ MIDDLEWARE = [
 # ==========================================
 # Replace the first URL with your actual React frontend URL on Render
 CORS_ALLOWED_ORIGINS = [
-    "https://your-react-frontend.onrender.com",
+    "https://vivify.onrender.com",
     "http://localhost:3000", # Keep for local testing with Create React App
     "http://localhost:5173", # Keep for local testing with Vite
 ]
