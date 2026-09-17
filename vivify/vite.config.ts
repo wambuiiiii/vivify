@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 
 export default defineConfig({
+  base: '/',
   plugins: [
     tailwindcss(), // Fixes Error 1: Compiles your styles.css
     TanStackRouterVite(),
