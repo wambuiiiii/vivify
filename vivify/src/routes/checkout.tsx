@@ -102,12 +102,13 @@ const calculateShipping = async (lat: number, lng: number) => {
     setIsCalculating(false);
   }
 };
-
-  const handlePlaceOrder = async (e: React.FormEvent) => {
+const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!session) {
       toast.error("Please log in to checkout.");
-      navigate({ to: "/auth" });
+      // Pass the redirect path in the search parameters.
+      // Using 'as any' bypasses strict TanStack router type errors if search isn't pre-configured.
+      navigate({ to: "/auth", search: { redirect: "/checkout" } as any });
       return;
     }
     if (deliveryMethod === 'delivery' && !addressDetails.lat) {
@@ -121,7 +122,11 @@ const calculateShipping = async (lat: number, lng: number) => {
 
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:8000/api/checkout/", {
+      // 1. Define the API URL just like you did in calculateShipping
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+      // 2. Use the dynamic apiUrl instead of hardcoding localhost
+      const response = await fetch(`${apiUrl}/api/checkout/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

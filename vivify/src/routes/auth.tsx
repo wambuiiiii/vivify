@@ -25,11 +25,17 @@ function AuthPage() {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // 1. Read the URL to see if a redirect was requested (defaults to "/" if none exists)
+  const searchParams = new URLSearchParams(window.location.search);
+  const redirectPath = searchParams.get("redirect") || "/";
+  const fullRedirectUrl = `${window.location.origin}${redirectPath}`;
+
   useEffect(() => {
+    // If they are already logged in, send them to their intended destination
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/" });
+      if (data.session) navigate({ to: redirectPath as any });
     });
-  }, [navigate]);
+  }, [navigate, redirectPath]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +46,8 @@ function AuthPage() {
           email,
           password,
           options: {
-            emailRedirectTo: window.location.origin,
+            // 2. Use the dynamic URL for email verification redirects
+            emailRedirectTo: fullRedirectUrl,
             data: { full_name: fullName },
           },
         });
@@ -50,7 +57,9 @@ function AuthPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Welcome back!");
-        navigate({ to: "/" });
+        
+        // 3. Navigate directly to checkout (or home) immediately after successful sign in
+        navigate({ to: redirectPath as any });
       }
     } catch (err: any) {
       toast.error(err.message ?? "Something went wrong");
@@ -59,14 +68,14 @@ function AuthPage() {
     }
   };
 
-const handleGoogle = async () => {
+  const handleGoogle = async () => {
     setLoading(true);
     try {
-      // Replaced Lovable with the real Supabase OAuth function
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: window.location.origin,
+          // 4. Use the dynamic URL for Google OAuth redirects
+          redirectTo: fullRedirectUrl,
         }
       });
 
@@ -75,9 +84,6 @@ const handleGoogle = async () => {
         setLoading(false);
         return;
       }
-
-      // Note: We don't need 'navigate()' here. Supabase will physically
-      // redirect the browser away to the Google login screen automatically.
     } catch (err: any) {
       toast.error(err.message ?? "Google sign-in failed");
       setLoading(false);
@@ -93,7 +99,6 @@ const handleGoogle = async () => {
           alt="Vivify beaded bag styled"
           className="absolute inset-0 w-full h-full object-cover"
         />
-
       </div>
 
       {/* Form side */}
