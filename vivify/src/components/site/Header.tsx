@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ShoppingBag, Search, Moon, Sun, User, LogOut } from "lucide-react";
+import { ShoppingBag, Moon, Sun, User, LogOut } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import logo from "@/assets/vivify-logo.png";
 import { useCart } from "@/contexts/CartContext";
@@ -66,11 +66,15 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 backdrop-blur-md bg-background/75 border-b border-border/60">
-      <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto grid h-16 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-2 sm:h-20 sm:px-4 md:flex md:justify-between md:px-6">
 
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 hover-scale shrink-0">
-          <img src={logo} alt="Vivify" className="h-40 md:h-48 w-auto -my-12 dark:invert dark:brightness-200" />
+        <Link to="/" className="flex items-center gap-2 hover-scale shrink-0 -ml-3 sm:-ml-4 md:-ml-6">
+          <img
+            src={logo}
+            alt="Vivify"
+            className="h-32 max-w-full w-auto -my-8 object-contain object-left sm:h-40 md:h-52 md:-my-12 dark:invert dark:brightness-200"
+          />
         </Link>
 
         {/* Desktop Nav */}
@@ -82,21 +86,17 @@ export function Header() {
         </nav>
 
         {/* Actions */}
-        <div className="flex items-center gap-3">
-          <button onClick={toggleTheme} aria-label="Toggle theme" className="p-2.5 hover:text-accent transition">
-            {dark ? <Sun className="w-7 h-7" strokeWidth={1.5} /> : <Moon className="w-7 h-7" strokeWidth={1.5} />}
-          </button>
-
-          <button aria-label="Search" className="p-2.5 hover:text-accent transition">
-            <Search className="w-7 h-7" strokeWidth={1.5} />
+        <div className="flex shrink-0 items-center gap-0 sm:gap-1 lg:gap-3">
+          <button onClick={toggleTheme} aria-label="Toggle theme" className="p-1.5 hover:text-accent transition sm:p-2.5">
+            {dark ? <Sun className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.5} /> : <Moon className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.5} />}
           </button>
 
           <button
             onClick={() => setOpen(true)}
             aria-label="Cart"
-            className="relative p-2.5 hover:text-accent transition"
+            className="relative p-1.5 hover:text-accent transition sm:p-2.5"
           >
-            <ShoppingBag className="w-7 h-7" strokeWidth={1.5} />
+            <ShoppingBag className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.5} />
             {count > 0 && (
               <span className="absolute top-0 right-0 bg-accent text-accent-foreground text-[11px] rounded-full w-5 h-5 flex items-center justify-center font-semibold">
                 {count}

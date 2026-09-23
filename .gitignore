@@ -22,6 +22,7 @@ backend/venv/
 backend/.venv/
 backend/viv_env/
 media/
+views2/
 # IDEs
 .vscode/*
 !.vscode/extensions.json

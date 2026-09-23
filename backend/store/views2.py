@@ -44,45 +44,49 @@ def calculate_shipping_fee(buyer_lat, buyer_lon):
         return 0
 
     try:
+        # Load dynamic coordinates and prices directly from the Admin Dashboard!
         store_settings = StoreSettings.load()
         store_lat = float(store_settings.store_latitude)
         store_lon = float(store_settings.store_longitude)
 
-        api_key = os.getenv('GOOGLE_SERVER_API_KEY')
+        # The API key remains a secret in .env
+        api_key = os.getenv('GOOGLE_MAPS_API_KEY')
         distance_km = 0
 
+        # Try to get ACTUAL driving distance from Google Maps Distance Matrix
         if api_key:
             url = f"https://maps.googleapis.com/maps/api/distancematrix/json?origins={store_lat},{store_lon}&destinations={buyer_lat},{buyer_lon}&key={api_key}"
             response = requests.get(url)
             data = response.json()
+
             if data['status'] == 'OK' and data['rows'][0]['elements'][0]['status'] == 'OK':
                 distance_km = data['rows'][0]['elements'][0]['distance']['value'] / 1000.0
-        print(
-            f"DEBUG: google_status={data.get('status') if api_key else 'NO_API_KEY'}, element_status={data['rows'][0]['elements'][0].get('status') if api_key and data.get('status') == 'OK' else 'N/A'}")
+
+        # Fallback to straight-line math if the Google API fails
         if distance_km == 0:
             R = 6371.0
-            lat1, lon1 = math.radians(store_lat), math.radians(store_lon)
-            lat2, lon2 = math.radians(float(buyer_lat)), math.radians(float(buyer_lon))
-            dlon, dlat = lon2 - lon1, lat2 - lat1
+            lat1 = math.radians(store_lat)
+            lon1 = math.radians(store_lon)
+            lat2 = math.radians(float(buyer_lat))
+            lon2 = math.radians(float(buyer_lon))
+
+            dlon = lon2 - lon1
+            dlat = lat2 - lat1
             a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
             c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-            distance_km = (R * c) * 1.3
+            distance_km = (R * c) * 1.4  # 1.4x road multiplier
 
+        # Calculate fee using the Admin Dashboard numbers
         base_fee = float(store_settings.shipping_base_fee)
         rate_per_km = float(store_settings.shipping_rate_per_km)
-        minimum_fee = float(store_settings.minimum_shipping_fee)  # add this field to StoreSettings
 
-        calculated_fee = base_fee + (distance_km * rate_per_km)
-        final_fee = max(minimum_fee, calculated_fee)
-        print(
-            f"DEBUG: distance_km={distance_km}, base_fee={base_fee}, rate_per_km={rate_per_km}, minimum_fee={minimum_fee}, calculated_fee={calculated_fee}, final_fee={final_fee}")
-        print(
-            f"DEBUG: origin=({store_lat},{store_lon}), destination=({buyer_lat},{buyer_lon}), google_distance_km={distance_km}")
-        return round(final_fee / 10) * 10
+        total_fee = base_fee + (distance_km * rate_per_km)
+        return round(total_fee / 10) * 10
 
     except Exception as e:
         print(f"Shipping Calculation Error: {e}")
-        return 200
+        return 0
+
 
 class CalculateShippingView(APIView):
     def post(self, request):

@@ -26,6 +26,7 @@ def health_check(request):
 urlpatterns = [
     path('admin/', admin.site.urls),
     # This routes any URL starting with /api/ to your store app!
+    path('api/', include('accounts.urls')),
     path('api/', include('store.urls')),
     path('health/', health_check, name='health_check'),
 ]

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useCart } from "@/contexts/CartContext";
 import { ProductCard } from "@/components/site/ProductCard";
 import { transformDjangoData, type UIProduct, type Variant } from "@/routes/shop";
+import {Loader2} from "lucide-react";
 
 export const Route = createFileRoute("/product/$id")({
   loader: async ({ params }) => {
@@ -22,6 +23,13 @@ export const Route = createFileRoute("/product/$id")({
       throw notFound();
     }
   },
+  pendingMs: 150,
+  pendingComponent: () => (
+    <div className="min-h-[70vh] flex flex-col items-center justify-center text-muted-foreground animate-in fade-in duration-300">
+      <Loader2 className="w-8 h-8 animate-spin text-accent mb-4" />
+      <p className="text-xs uppercase tracking-widest font-medium">Fetching Details...</p>
+    </div>
+  ),
   notFoundComponent: () => (
     <div className="max-w-xl mx-auto py-32 text-center">
       <h1 className="font-display text-4xl">Bag not found</h1>
@@ -67,7 +75,7 @@ function ProductPage() {
   const isSoldOut = variant.stock === 0;
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-12">
+    <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 sm:py-12">
       <div className="grid md:grid-cols-2 gap-12">
         {/* IMAGE GALLERY & ZOOM */}
         <div
@@ -87,7 +95,7 @@ function ProductPage() {
         {/* PRODUCT DETAILS */}
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-accent">{product.categoryLabel}</p>
-          <h1 className="font-display text-5xl mt-2">{product.name}</h1>
+          <h1 className="font-display mt-2 text-4xl break-words sm:text-5xl">{product.name}</h1>
           <p className="text-2xl mt-3">KES {product.price}</p>
           <p className="text-muted-foreground mt-6">{product.description}</p>
 
@@ -95,21 +103,37 @@ function ProductPage() {
           <div className="mt-8">
             <p className="text-sm uppercase tracking-wider mb-3">
               Color — <span className="text-muted-foreground normal-case tracking-normal">{variant.color}</span>
+              {variant.stock === 0 && <span className="text-red-500 ml-2 font-medium">(Out of Stock)</span>}
             </p>
-            <div className="flex gap-3">
-              {product.variants.map((v: Variant) => (
-                <button
-                  key={v.id}
-                  onClick={() => setVariant(v)}
-                  aria-label={v.color}
-                  className={`w-12 h-12 rounded-full border-2 transition ${
-                    variant.id === v.id 
-                      ? "border-accent ring-2 ring-accent/30" 
-                      : "border-border hover:border-foreground/40"
-                  }`}
-                  style={{ background: v.swatch }}
-                />
-              ))}
+            <div className="flex flex-wrap gap-3">
+              {product.variants.map((v: Variant) => {
+                const isVariantSoldOut = v.stock === 0; // Check if this SPECIFIC color is sold out
+
+                return (
+                  <button
+                    key={v.id}
+                    onClick={() => setVariant(v)}
+                    aria-label={v.color}
+                    className={`relative w-12 h-12 rounded-full border-2 transition-all overflow-hidden ${
+                      variant.id === v.id
+                        ? "border-accent ring-2 ring-accent/30 scale-105"
+                        : "border-border hover:border-foreground/40"
+                    } ${isVariantSoldOut ? "opacity-40" : ""}`}
+                    // Replaced linear-gradient with a simple solid backgroundColor
+                    style={{
+                      backgroundColor: v.swatch,
+                      boxShadow: variant.id === v.id ? `0 0 0 2px rgba(255,255,255,0.3), 0 0 0 4px ${v.swatch}44, 0 10px 24px ${v.swatch}55` : `0 0 0 1px rgba(0,0,0,0.08), 0 8px 18px ${v.swatch}38`,
+                    }}
+                  >
+                     {/* Visual X for Sold Out Variants */}
+                     {isVariantSoldOut && (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="w-full h-[1px] bg-red-600/90 rotate-45 absolute" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -153,7 +177,7 @@ function ProductPage() {
       {/* RELATED PRODUCTS */}
       <section className="mt-24">
         <h2 className="font-display text-3xl mb-6">You may also love</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-3">
           {relatedProducts.map((p, i) => (
             <ProductCard key={p.id} product={p} index={i} />
           ))}

@@ -1,6 +1,10 @@
+import os
+
+from django.core.files.base import ContentFile
 from django.db import models
 from django.conf import settings
-
+from io import BytesIO
+from PIL import Image
 
 class Category(models.Model):
     name = models.CharField(max_length=100)
@@ -17,31 +21,37 @@ class Category(models.Model):
 class Bag(models.Model):
     # The complete list of premium Lovable gradient swatches
     SWATCH_CHOICES = [
-        # Neutrals & Classics
-        ('linear-gradient(135deg, #fdfbfb, #ebedee)', 'Pearl / White'),
-        ('linear-gradient(135deg, #f8f9fa, #ced4da)', 'Crystal / Clear'),
-        ('linear-gradient(135deg, #434343, #000000)', 'Midnight / Onyx Black'),
-        ('linear-gradient(135deg, #fdfbfb, #e3d5ca)', 'Champagne'),
-        ('linear-gradient(135deg, #cfd9df, #e2ebf0)', 'Silver'),
-        ('linear-gradient(135deg, #f6d365, #fda085)', 'Gold'),
+        # --- Pinks & Reds ---
+        ('#ff3da5', 'Hot Pink (Vibrant Solid Pink)'),
+        ('#e8259a', 'Fuchsia (Deep Purplish-Pink)'),
+        ('#ff8ab8', 'Rose Quartz (Soft Blush Pink)'),
+        ('#fde8ef', 'Pearl & Blush (Very Light Pink/White)'),
+        ('#d8211a', 'Crimson / Ruby (Classic Deep Red)'),
+        ('#d9381a', 'Ember (Orange-Toned Red)'),
 
-        # Pinks & Reds
-        ('linear-gradient(135deg, #fbc2eb, #a6c1ee)', 'Blush Rose'),
-        ('linear-gradient(135deg, #f093fb, #f5576c)', 'Fuchsia Pink'),
-        ('linear-gradient(135deg, #ff0844, #ffb199)', 'Ruby Red'),
-        ('linear-gradient(135deg, #ffecd2, #fcb69f)', 'Peach / Coral'),
+        # --- Oranges & Yellows ---
+        ('#ff7a1a', 'Tangerine (Bright Orange)'),
+        ('#ff7a4a', 'Coral Glow (Soft Orange-Pink)'),
+        ('#ff3d8a', 'Sunset (Vibrant Pink-Orange)'),
+        ('#f5e58a', 'Butter (Soft Pastel Yellow)'),
 
-        # Purples & Blues
-        ('linear-gradient(135deg, #9b23ea, #5f72bd)', 'Amethyst Purple'),
-        ('linear-gradient(135deg, #2af598, #009efd)', 'Sapphire Blue'),
-        ('linear-gradient(135deg, #667eea, #764ba2)', 'Deep Plum'),
+        # --- Purples ---
+        ('#8a52d4', 'Amethyst (Bright Jewel Purple)'),
+        ('#a64ad9', 'Orchid (Soft Muted Purple)'),
 
-        # Greens
-        ('linear-gradient(135deg, #0ba360, #3cba92)', 'Emerald Green'),
-        ('linear-gradient(135deg, #d9f99d, #84cc16)', 'Rich Lime'),
-        ('linear-gradient(135deg, #96fbc4, #f9f586)', 'Mint / Pistachio'),
+        # --- Greens ---
+        ('#8ccf2f', 'Lime (Bright Yellow-Green)'),
+        ('#7fb84a', 'Citrus Grove (Earthy Amber-Green)'),
+
+        # --- Neutrals, Browns & Clears ---
+        ('#ecf3f8', 'Clear / Ice (Translucent White)'),
+        ('#4a2418', 'Cocoa (Rich Dark Brown)'),
+
+        # --- Blacks & Darks ---
+        ('#0f0f10', 'Onyx & Gold (Deepest Black)'),
+        ('#1a1a1a', 'Jet Multi (Charcoal/Sparkle Black)'),
+        ('#141414', 'Noir & Rose (Soft Matte Black)'),
     ]
-
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, related_name='bags')
     name = models.CharField(max_length=200)
     color = models.CharField(max_length=50, help_text="e.g., 'Lime Green', 'Pearl'")
@@ -61,6 +71,43 @@ class Bag(models.Model):
     is_featured = models.BooleanField(default=False, help_text="Show this bag on the landing page")
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def save(self, *args, **kwargs):
+        # We wrap the ENTIRE process, including the size check, in the try block
+        try:
+            if self.image:
+                # If this is an existing image on Supabase, checking .size might trigger a 403.
+                # If it does, the except block below catches it and prevents a crash!
+                if self.image.size > 512000:
+                    from io import BytesIO
+                    from PIL import Image
+                    from django.core.files.base import ContentFile
+                    import os
+
+                    img = Image.open(self.image)
+
+                    if img.mode != 'RGB':
+                        img = img.convert('RGB')
+
+                    max_size = (1000, 1000)
+                    img.thumbnail(max_size, Image.Resampling.LANCZOS)
+
+                    output = BytesIO()
+                    img.save(output, format='JPEG', quality=75)
+                    output.seek(0)
+
+                    file_name = os.path.basename(self.image.name)
+                    if not file_name.lower().endswith('.jpg'):
+                        file_name = f"{os.path.splitext(file_name)[0]}.jpg"
+
+                    self.image.save(file_name, ContentFile(output.getvalue()), save=False)
+
+        except Exception as e:
+            # Supabase blocked the read request, or the file is missing.
+            # We silently ignore the error so the Admin panel doesn't crash!
+            print(f"Skipping compression: {e}")
+
+        # Proceed with normal saving no matter what
+        super().save(*args, **kwargs)
     def __str__(self):
         return f"{self.name} ({self.color})"
 
@@ -68,15 +115,17 @@ class Bag(models.Model):
 # --- NEW: DYNAMIC STORE SETTINGS FOR THE ADMIN ---
 class StoreSettings(models.Model):
     name = models.CharField(max_length=255, default="My Home Studio", help_text="A label for your reference")
-    store_latitude = models.DecimalField(max_digits=9, decimal_places=6, default=-1.2655,
+    store_latitude = models.DecimalField(max_digits=9, decimal_places=6, default=-1.283338,
                                          help_text="Your exact Google Maps Latitude")
-    store_longitude = models.DecimalField(max_digits=9, decimal_places=6, default=36.8023,
+    store_longitude = models.DecimalField(max_digits=9, decimal_places=6, default=36.825122,
                                           help_text="Your exact Google Maps Longitude")
 
     # Dynamic Pricing Controls
-    shipping_base_fee = models.DecimalField(max_digits=10, decimal_places=2, default=150.00,
+    shipping_base_fee = models.DecimalField(max_digits=10, decimal_places=2, default=60.00,
                                             help_text="Base drop-off fee for the boda (KES)")
-    shipping_rate_per_km = models.DecimalField(max_digits=10, decimal_places=2, default=35.00,
+    shipping_rate_per_km = models.DecimalField(max_digits=10, decimal_places=2, default=20.50,
+                                               help_text="Amount to charge per driving KM (KES)")
+    minimum_shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, default=100.00,
                                                help_text="Amount to charge per driving KM (KES)")
     pickup_mtaani_fee = models.DecimalField(max_digits=10, decimal_places=2, default=150.00,
                                             help_text="Flat fee for Pickup Mtaani agent drops (KES)")

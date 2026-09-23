@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ProductCard } from "@/components/site/ProductCard";
 import { useState, useEffect } from "react";
 import { z } from "zod";
+import { Loader2 } from "lucide-react"; // Import the spinner
 
 // --- TYPES ---
 export interface Variant {
@@ -23,15 +24,23 @@ export interface UIProduct {
   variants: Variant[];
 }
 
-// --- THE GROUPING MAGIC ---
-// This turns Django's flat list into your beautiful nested Variant UI
+const COLOR_SWATCHES: Record<string, string> = {
+  "Tangerine": "#ff7a1a", "Butter": "#f5e58a", "Crimson": "#d8211a",
+  "Cocoa": "#4a2418", "Fuchsia": "#e8259a", "Amethyst": "#8a52d4",
+  "Lime": "#8ccf2f", "Hot Pink": "#ff3da5", "Sunset": "#ff3d8a",
+  "Coral Glow": "#ff7a4a", "Clear": "#ecf3f8", "Ruby": "#d8211a",
+  "Ember": "#d9381a", "Orchid": "#a64ad9", "Pearl & Blush": "#fde8ef",
+  "Onyx & Gold": "#0f0f10", "Jet Multi": "#1a1a1a", "Noir & Rose": "#141414",
+  "Citrus Grove": "#7fb84a", "Rose Quartz": "#ff8ab8",
+};
+
 export function transformDjangoData(djangoBags: any[]): UIProduct[] {
   const productMap = new Map<string, UIProduct>();
 
   djangoBags.forEach((bag) => {
     if (!productMap.has(bag.name)) {
       productMap.set(bag.name, {
-        id: bag.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), // e.g., "bucket-bag"
+        id: bag.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
         name: bag.name,
         price: bag.price,
         description: bag.description,
@@ -40,28 +49,23 @@ export function transformDjangoData(djangoBags: any[]): UIProduct[] {
         is_featured: bag.is_featured,
         variants: [],
       });
-    } // <--- THIS CLOSING BRACE WAS MISSING!
+    }
 
-    // Grab the product shell from the map
     const product = productMap.get(bag.name)!;
 
-    // FIX: If the bag was created before we added the color_hex field,
-    // it might be empty. We default it to a nice silver-grey so it doesn't break!
-    const safeSwatch = bag.color_hex ? bag.color_hex : "#cccccc";
+    // THE FIX: Use Django's hex FIRST. If missing, look up the name in our dictionary. If all else fails, use grey.
+    const safeSwatch = bag.color_hex || COLOR_SWATCHES[bag.color] || "#cccccc";
 
-    // Push this specific color row into the product's variants array
     product.variants.push({
       id: bag.id,
       color: bag.color,
       image: bag.image,
-      swatch: safeSwatch,
+      swatch: safeSwatch, // Uses the guaranteed color!
       stock: bag.stock,
     });
   });
 
   const products = Array.from(productMap.values());
-
-  // Sort variants by ID so the oldest (first created) is always the default!
   products.forEach(p => p.variants.sort((a, b) => a.id - b.id));
 
   return products;
@@ -78,29 +82,41 @@ export const Route = createFileRoute("/shop")({
       { name: "description", content: "Browse all Vivify beaded handbags by silhouette." },
     ],
   }),
+  // 1. Moved the fetch into the loader
+  loader: async () => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const res = await fetch(`${apiUrl}/api/bags/`);
+      if (!res.ok) throw new Error("Database network response was not ok");
+      const data = await res.json();
+      return { products: transformDjangoData(data) };
+    } catch (err) {
+      console.error("Failed to fetch bags:", err);
+      return { products: [] };
+    }
+  },
+  // 2. Added the pending state to stop screen freezing
+  pendingMs: 150,
+  pendingComponent: () => (
+    <div className="min-h-[70vh] flex flex-col items-center justify-center text-muted-foreground animate-in fade-in duration-300">
+      <Loader2 className="w-8 h-8 animate-spin text-accent mb-4" />
+      <p className="text-xs uppercase tracking-widest font-medium">Loading Shop...</p>
+    </div>
+  ),
   component: Shop,
 });
 
 function Shop() {
   const search = Route.useSearch();
-  const [filter, setFilter] = useState<string | undefined>(search.cat);
-  const [products, setProducts] = useState<UIProduct[]>([]);
-  const [loading, setLoading] = useState(true);
+  // 3. Receive the loaded data instantly from the router
+  const { products } = Route.useLoaderData();
 
-  // Fetch from Django on load
+  const [filter, setFilter] = useState<string | undefined>(search.cat);
+
+  // Keep the filter in sync if the URL changes
   useEffect(() => {
-    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
-    fetch(`${apiUrl}/api/bags/`)
-      .then((res) => res.json())
-      .then((data) => {
-        setProducts(transformDjangoData(data));
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to fetch bags:", err);
-        setLoading(false);
-      });
-  }, []);
+    setFilter(search.cat);
+  }, [search.cat]);
 
   // Dynamically generate category buttons from the actual data!
   const categories = Array.from(
@@ -109,16 +125,14 @@ function Shop() {
 
   const list = filter ? products.filter((p) => p.category === filter) : products;
 
-  if (loading) return <div className="py-32 text-center text-muted-foreground">Loading collection...</div>;
-
   return (
-    <div className="max-w-7xl mx-auto px-6 py-16">
+    <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 sm:py-16">
       <header className="text-center mb-10">
         <p className="text-xs uppercase tracking-[0.3em] text-accent">shop</p>
-        <h1 className="font-display text-5xl mt-2">All bags</h1>
+        <h1 className="font-display text-4xl mt-2 sm:text-5xl">All bags</h1>
       </header>
 
-      <div className="flex flex-wrap justify-center gap-2 mb-10">
+      <div className="mb-10 flex flex-wrap justify-center gap-2">
         <button
           onClick={() => setFilter(undefined)}
           className={`px-5 py-2 rounded-full text-xs uppercase tracking-wider border transition ${!filter ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-accent"}`}
@@ -132,7 +146,7 @@ function Shop() {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
+      <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-3 md:gap-8 lg:grid-cols-4">
         {list.map((p, i) => <ProductCard key={p.id} product={p} index={i} />)}
       </div>
     </div>

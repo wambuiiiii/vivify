@@ -2,10 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ProductCard } from "@/components/site/ProductCard";
 import { transformDjangoData, type UIProduct } from "@/routes/shop";
 import hero from "@/assets/hero-model.jpg";
-import look1 from "@/assets/lookbook-1.jpg";
-import look2 from "@/assets/lookbook-2.jpg";
-import look3 from "@/assets/lookbook-3.jpg";
-import { ArrowRight } from "lucide-react";
+
+import {ArrowRight, Loader2} from "lucide-react";
 
 export const Route = createFileRoute("/")({
   // The loader queries your live Django API for products before rendering the landing page
@@ -25,8 +23,17 @@ export const Route = createFileRoute("/")({
       return { allProducts: [] };
     }
   },
-  component: Index,
+    pendingMs: 150, // Show spinner after 150ms to prevent screen freezing
+    pendingComponent: () => (
+
+        <div className="min-h-screen flex flex-col items-center justify-center text-muted-foreground animate-in fade-in duration-300">
+          <Loader2 className="w-8 h-8 animate-spin text-accent mb-4" />
+          <p className="text-xs uppercase tracking-widest font-medium">Loading Collection...</p>
+        </div>
+      ),
+    component: Index,
 });
+
 /* STREAMING_CHUNK:Resolving TypeScript types and category matching... */
 function Index() {
   // Cast the loader data to UIProduct[] to satisfy TS6133
@@ -57,21 +64,21 @@ function Index() {
     <div>
       {/* HERO */}
       <section className="marble-bg relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6 pt-12 pb-20 md:pt-20 md:pb-32 grid md:grid-cols-2 gap-10 items-center">
-          <div className="animate-float-up">
-            <p className="font-script text-3xl text-accent mb-4">handmade in nairobi</p>
-            <h1 className="font-display text-5xl md:text-7xl leading-[1.05]">
+        <div className="max-w-7xl mx-auto grid gap-10 px-4 pt-10 pb-16 sm:px-6 md:grid-cols-2 md:pt-20 md:pb-32 md:items-center">
+          <div className="min-w-0 animate-float-up">
+            <p className="font-script text-2xl text-accent mb-4 sm:text-3xl">handmade in nairobi</p>
+            <h1 className="font-display text-4xl leading-[1.05] sm:text-5xl md:text-7xl">
               Bags that <em className="text-accent">vivify</em><br />every outfit.
             </h1>
             <p className="mt-6 text-muted-foreground max-w-md text-lg">
               One-of-a-kind beaded handbags, hand-strung bead by bead. Crystal,
               pearl, and floral statement pieces made to be loved.
             </p>
-            <div className="mt-8 flex gap-4">
-              <Link to="/shop" className="bg-primary text-primary-foreground px-7 py-3.5 rounded-md uppercase tracking-widest text-xs font-medium hover:bg-accent hover:text-accent-foreground transition shadow-soft inline-flex items-center gap-2">
+            <div className="mt-8 grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:flex sm:gap-4">
+              <Link to="/shop" className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-3.5 rounded-md uppercase tracking-widest text-[11px] font-medium hover:bg-accent hover:text-accent-foreground transition shadow-soft sm:px-7 sm:text-xs">
                 Shop the collection <ArrowRight className="w-4 h-4" />
               </Link>
-              <Link to="/lookbook" className="px-7 py-3.5 rounded-md uppercase tracking-widest text-xs font-medium border border-foreground/20 hover:border-accent hover:text-accent transition">
+              <Link to="/lookbook" className="inline-flex items-center justify-center rounded-md border border-foreground/20 px-4 py-3.5 uppercase tracking-widest text-[11px] font-medium hover:border-accent hover:text-accent transition sm:px-7 sm:text-xs">
                 Style It
               </Link>
             </div>
@@ -85,7 +92,7 @@ function Index() {
       </section>
 
       {/* FEATURED 4 BAGS */}
-      <section className="max-w-7xl mx-auto px-6 py-20 md:py-28">
+      <section className="max-w-7xl mx-auto px-4 py-16 sm:px-6 md:py-28">
         <div className="flex items-end justify-between mb-10">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-accent">latest drop</p>
@@ -105,7 +112,7 @@ function Index() {
             <Link to="/shop" className="text-accent underline text-sm">Visit Shop Page</Link>
           </div>
         ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+          <div className="grid gap-3 sm:gap-6 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
             {featured.map((p, i) => (
               <ProductCard key={p.id} product={p} index={i} />
             ))}
@@ -115,7 +122,7 @@ function Index() {
 
       {/* CATEGORIES */}
       <section className="bg-secondary/40 py-20 md:py-28">
-        <div className="max-w-7xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
             <p className="text-xs uppercase tracking-[0.3em] text-accent">explore</p>
             <h2 className="font-display text-4xl md:text-5xl mt-2">Shop by silhouette</h2>
@@ -124,13 +131,13 @@ function Index() {
           {dynamicCategories.length === 0 ? (
             <p className="text-center text-muted-foreground text-sm">No active categories found in database.</p>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-4">
               {dynamicCategories.map((c) => (
                 <Link
                   key={c.id}
                   to="/shop"
                   search={{ cat: c.id }}
-                  className="group bg-card p-8 rounded-xl text-center shadow-soft hover:shadow-lift transition hover-scale"
+                  className="group bg-card p-4 rounded-xl text-center shadow-soft hover:shadow-lift transition hover-scale sm:p-8"
                 >
                   <div className="w-16 h-16 mx-auto rounded-full gradient-bead mb-4 group-hover:scale-110 transition" />
                   <h3 className="font-display text-xl">{c.label}</h3>
@@ -142,29 +149,6 @@ function Index() {
         </div>
       </section>
 
-      {/* HOW TO STYLE */}
-      <section className="max-w-7xl mx-auto px-6 py-20 md:py-28">
-        <div className="text-center mb-12">
-          <p className="text-xs uppercase tracking-[0.3em] text-accent">styled</p>
-          <h2 className="font-display text-4xl md:text-5xl mt-2">How to wear Vivify</h2>
-          <p className="text-muted-foreground mt-3 max-w-xl mx-auto">From rooftop dinners to garden lunches — three ways to style our pieces.</p>
-        </div>
-        <div className="grid md:grid-cols-3 gap-6">
-          {[
-            { img: look1, title: "City Polish", text: "A crystal mini elevates a tonal cream suit." },
-            { img: look2, title: "Evening Drama", text: "Onyx pearls with a slip dress at golden hour." },
-            { img: look3, title: "Garden Joy", text: "A butter knot for sunlit afternoons." },
-          ].map((s, i) => (
-            <div key={i} className="group animate-float-up" style={{ animationDelay: `${i * 100}ms` }}>
-              <div className="aspect-[4/5] overflow-hidden rounded-xl shadow-soft">
-                <img src={s.img} alt={s.title} loading="lazy" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-              </div>
-              <h3 className="font-display text-2xl mt-4">{s.title}</h3>
-              <p className="text-muted-foreground text-sm mt-1">{s.text}</p>
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* CTA */}
       <section className="max-w-7xl mx-auto px-6 pb-10">
