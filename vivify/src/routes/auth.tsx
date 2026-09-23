@@ -154,7 +154,7 @@ function AuthPage() {
         setFormSuccess("If an account exists, a password reset link has been sent to your email.");
         toast.success("Reset link sent!");
       } else if (mode === "signup") {
-        const { data, error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: {

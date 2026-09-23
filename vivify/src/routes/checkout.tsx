@@ -182,7 +182,7 @@ export default function CheckoutPage() {
             });
 
             marker.addListener("dragend", () => {
-              const pos = marker.position as google.maps.LatLng;
+              const pos = marker.position as { lat: (() => number) | number; lng: (() => number) | number };
               const lat = typeof pos.lat === "function" ? pos.lat() : pos.lat;
               const lng = typeof pos.lng === "function" ? pos.lng() : pos.lng;
               updateAddressFromCoords(lat as number, lng as number);

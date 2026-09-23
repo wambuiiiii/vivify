@@ -131,7 +131,7 @@ export function Header() {
               )}
             </div>
           ) : (
-            <Link to="/auth" aria-label="Sign in" className="p-2.5 hover:text-accent transition">
+            <Link to="/auth" search={{ redirect: undefined }} aria-label="Sign in" className="p-2.5 hover:text-accent transition">
               <User className="w-7 h-7" strokeWidth={1.5} />
             </Link>
           )}
