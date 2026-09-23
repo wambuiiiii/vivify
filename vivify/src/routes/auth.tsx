@@ -11,6 +11,7 @@ import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 
 import lightHero from "@/assets/bags/authlight.png";
 import darkHero from "@/assets/bags/authdark.png";
+import logo from "@/assets/vivify-logo.png";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -212,14 +213,14 @@ function AuthPage() {
 
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <div className="min-h-screen grid lg:grid-cols-2 bg-background">
+      <div className="min-h-screen grid bg-background lg:grid-cols-2">
         <div className="relative hidden lg:block overflow-hidden">
           <img src={lightHero} alt="Vivify beaded bags arranged" className="absolute inset-0 w-full h-full object-cover dark:hidden" />
           <img src={darkHero} alt="Vivify amber beaded bag in dramatic light" className="absolute inset-0 w-full h-full object-cover hidden dark:block" />
           <div className="absolute inset-0 bg-gradient-to-br from-background/40 via-background/10 to-background/70" />
         </div>
 
-        <div className="relative flex flex-col items-center justify-center px-6 py-12 sm:px-12">
+        <div className="relative flex flex-col items-center justify-center px-4 py-10 sm:px-8 sm:py-12 lg:px-12">
 
           {mode === "reset" || mode === "update" ? (
             <button
@@ -227,23 +228,25 @@ function AuthPage() {
                 window.history.replaceState(null, "", window.location.pathname + window.location.search);
                 switchMode("signin");
               }}
-              className="absolute top-6 left-6 text-xs uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition"
+              className="absolute left-4 top-4 text-[10px] uppercase tracking-[0.2em] text-muted-foreground transition hover:text-foreground sm:left-6 sm:top-6 sm:text-xs"
             >
               ← Back to Sign In
             </button>
           ) : (
             <Link
               to="/"
-              className="absolute top-6 left-6 text-xs uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition"
+              className="absolute left-4 top-4 text-[10px] uppercase tracking-[0.2em] text-muted-foreground transition hover:text-foreground sm:left-6 sm:top-6 sm:text-xs"
             >
               ← Back
             </Link>
           )}
 
-          <div className="w-full max-w-sm">
+          <div className="w-full max-w-md">
             <div className="text-center mb-8">
               <div className="inline-block lg:hidden mb-6">
-                <Link to="/" className="font-display text-3xl">Vivify</Link>
+                <Link to="/" className="inline-flex justify-center">
+                  <img src={logo} alt="Vivify" className="h-20 w-auto object-contain dark:invert dark:brightness-200" />
+                </Link>
               </div>
               <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
                 {mode === "signin" ? "Member access" : mode === "signup" ? "Become a member" : "Account Recovery"}
@@ -269,8 +272,8 @@ function AuthPage() {
 
             {mode !== "reset" && mode !== "update" && (
               <>
-                <div className="w-full flex justify-center min-h-[44px] overflow-hidden rounded-full">
-                  <GoogleLogin onSuccess={handleGoogleSuccess} onError={() => { setFormError("Google sign-in failed."); toast.error("Google sign-in failed."); }} shape="pill" size="large" width="384" text={mode === "signin" ? "signin_with" : "signup_with"} />
+                <div className="flex min-h-[44px] w-full justify-center overflow-hidden rounded-full">
+                  <GoogleLogin onSuccess={handleGoogleSuccess} onError={() => { setFormError("Google sign-in failed."); toast.error("Google sign-in failed."); }} shape="pill" size="large" width="100%" text={mode === "signin" ? "signin_with" : "signup_with"} />
                 </div>
                 <div className="my-6 flex items-center gap-4">
                   <div className="flex-1 h-px bg-border" />
@@ -298,7 +301,7 @@ function AuthPage() {
               {mode === "signup" && (
                 <div className="space-y-1.5">
                   <Label htmlFor="fullName">Full name</Label>
-                  <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="h-12 rounded-lg" placeholder="Jane Doe" />
+                  <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="h-12 rounded-lg" />
                 </div>
               )}
 
@@ -318,7 +321,7 @@ function AuthPage() {
                     )}
                   </div>
                   <div className="relative">
-                    <Input id="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required className="h-12 rounded-lg pr-12" placeholder="••••••••" />
+                    <Input id="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required className="h-12 rounded-lg pr-12" />
                     <button type="button" onClick={() => setShowPassword((prev) => !prev)} className="absolute inset-y-0 right-3 flex items-center text-muted-foreground transition hover:text-foreground">
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>

@@ -341,7 +341,7 @@ export default function CheckoutPage() {
               <p className="text-sm mb-4 text-neutral-700">Pickup Mtaani coordinated via agent. Click below to confirm pickup location:</p>
               <div className="flex gap-2">
                 <a href="https://wa.me/+254115565903" target="_blank" rel="noreferrer" className="flex-1 bg-[#25D366] text-white p-3 rounded-lg text-center font-medium">WhatsApp</a>
-                <a href="tel:+254700000000" className="flex-1 bg-neutral-200 text-neutral-800 p-3 rounded-lg text-center font-medium">Call</a>
+                <a href="tel:+254115565903" className="flex-1 bg-neutral-200 text-neutral-800 p-3 rounded-lg text-center font-medium">Call</a>
               </div>
             </div>
           )}

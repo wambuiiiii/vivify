@@ -66,7 +66,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 backdrop-blur-md bg-background/75 border-b border-border/60">
-      <div className="max-w-7xl mx-auto grid h-16 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-2 sm:h-20 sm:px-4 md:flex md:justify-between md:px-6">
+      <div className="max-w-7xl mx-auto grid h-[4.5rem] grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-2 sm:h-20 sm:px-4 md:flex md:justify-between md:px-6">
 
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2 hover-scale shrink-0 -ml-3 sm:-ml-4 md:-ml-6">
