@@ -34,6 +34,7 @@ function AuthPage() {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [googleButtonWidth, setGoogleButtonWidth] = useState(360);
 
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
@@ -43,6 +44,15 @@ function AuthPage() {
   const fullRedirectUrl = `${window.location.origin}${redirectPath}`;
 
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+
+  useEffect(() => {
+    const updateGoogleWidth = () => {
+      setGoogleButtonWidth(Math.max(220, Math.min(360, window.innerWidth - 56)));
+    };
+    updateGoogleWidth();
+    window.addEventListener("resize", updateGoogleWidth);
+    return () => window.removeEventListener("resize", updateGoogleWidth);
+  }, []);
 
   // 1. COMBINED INTERCEPTOR: Handles routing, expired links, and password recovery
   useEffect(() => {
@@ -272,8 +282,8 @@ function AuthPage() {
 
             {mode !== "reset" && mode !== "update" && (
               <>
-                <div className="flex min-h-[44px] w-full justify-center overflow-hidden rounded-full">
-                  <GoogleLogin onSuccess={handleGoogleSuccess} onError={() => { setFormError("Google sign-in failed."); toast.error("Google sign-in failed."); }} shape="pill" size="large" width="100%" text={mode === "signin" ? "signin_with" : "signup_with"} />
+                <div className="flex min-h-[44px] w-full items-center justify-center rounded-xl border border-border/60 bg-card p-1">
+                  <GoogleLogin onSuccess={handleGoogleSuccess} onError={() => { setFormError("Google sign-in failed."); toast.error("Google sign-in failed."); }} shape="pill" size="large" width={`${googleButtonWidth}`} text={mode === "signin" ? "signin_with" : "signup_with"} />
                 </div>
                 <div className="my-6 flex items-center gap-4">
                   <div className="flex-1 h-px bg-border" />

@@ -41,7 +41,8 @@ export default function CheckoutPage() {
     lng: null as number | null,
   });
 
-  // NEW: Ensure total ignores shipping fee if Pickup Mtaani is selected
+  const checkoutDraftKey = "vivify_checkout_draft";
+
   const total = subtotal + (deliveryMethod === 'pickup' ? 0 : shippingFee);
 
   const calculateShipping = useCallback(async (lat: number, lng: number) => {
@@ -94,21 +95,41 @@ export default function CheckoutPage() {
       setIsAuthLoading(false);
     });
 
-    const savedState = sessionStorage.getItem("checkoutState");
-    if (savedState) {
+    // RESTORE SAVED DRAFT (Allows details to persist after login redirect)
+    const draftState = localStorage.getItem(checkoutDraftKey);
+    if (draftState) {
       try {
-        const parsed = JSON.parse(savedState);
+        const parsed = JSON.parse(draftState);
         if (parsed.phone) setPhone(parsed.phone);
         if (parsed.deliveryMethod) setDeliveryMethod(parsed.deliveryMethod);
-        // REMOVED: Auto-calculating shipping based on saved session to force manual input
+        if (parsed.addressDetails?.lat && parsed.addressDetails?.lng) {
+          setAddressDetails(parsed.addressDetails);
+          if (parsed.addressDetails.address && addressInputRef.current) {
+            addressInputRef.current.value = parsed.addressDetails.address;
+          }
+          calculateShipping(parsed.addressDetails.lat, parsed.addressDetails.lng);
+        }
       } catch (e) {}
-      sessionStorage.removeItem("checkoutState");
     }
 
     return () => authListener.subscription.unsubscribe();
-  }, []);
+  }, [calculateShipping]);
 
-  // Fetch Django Profile
+  useEffect(() => {
+    if (addressInputRef.current && addressDetails.address) {
+      addressInputRef.current.value = addressDetails.address;
+    }
+  }, [addressDetails.address, deliveryMethod]);
+
+  // SAVE DRAFT CONSTANTLY
+  useEffect(() => {
+    if (phone || addressDetails.lat || deliveryMethod !== 'delivery') {
+      const draft = JSON.stringify({ phone, addressDetails, deliveryMethod });
+      localStorage.setItem(checkoutDraftKey, draft);
+    }
+  }, [phone, addressDetails, deliveryMethod]);
+
+  // Fetch Django Profile (Fills blanks if draft is empty)
   useEffect(() => {
     const fetchProfile = async () => {
       if (!session?.access_token) return;
@@ -121,12 +142,23 @@ export default function CheckoutPage() {
         if (res.ok) {
           const data = await res.json();
           if (data.saved_phone && !phone) setPhone(data.saved_phone);
-          // REMOVED: Auto-calculating shipping from saved profile coords to force manual Auto-Detect
+          if (data.saved_lat && data.saved_lng && !addressDetails.lat && !addressDetails.lng) {
+            const savedAddress = {
+              address: data.saved_address || "",
+              lat: data.saved_lat,
+              lng: data.saved_lng,
+            };
+            setAddressDetails(savedAddress);
+            if (addressInputRef.current && savedAddress.address) {
+              addressInputRef.current.value = savedAddress.address;
+            }
+            calculateShipping(savedAddress.lat, savedAddress.lng);
+          }
         }
       } catch {}
     };
     fetchProfile();
-  }, [session, phone]);
+  }, [session, phone, addressDetails.lat, addressDetails.lng, calculateShipping]);
 
   // Init Google Maps (Advanced Marker API)
   useEffect(() => {
@@ -138,7 +170,6 @@ export default function CheckoutPage() {
         initStarted = true;
         clearInterval(checkGoogleInterval);
 
-        // A. Autocomplete
         if (addressInputRef.current && !addressInputRef.current.hasAttribute('data-bound')) {
           addressInputRef.current.setAttribute('data-bound', 'true');
           const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
@@ -156,11 +187,10 @@ export default function CheckoutPage() {
           });
         }
 
-        // B. Map & Advanced Marker
         if (mapRef.current && !mapInstance.current) {
           const defaultPos = addressDetails.lat
             ? { lat: addressDetails.lat, lng: addressDetails.lng }
-            : { lat: -1.286389, lng: 36.817223 }; // Nairobi
+            : { lat: -1.286389, lng: 36.817223 };
 
           try {
             const { Map } = await window.google.maps.importLibrary("maps");
@@ -181,7 +211,7 @@ export default function CheckoutPage() {
               gmpDraggable: true,
             });
 
-            marker.addListener("dragend", () => {
+            marker.addEventListener("gmp-dragend", () => {
               const pos = marker.position as { lat: (() => number) | number; lng: (() => number) | number };
               const lat = typeof pos.lat === "function" ? pos.lat() : pos.lat;
               const lng = typeof pos.lng === "function" ? pos.lng() : pos.lng;
@@ -189,7 +219,9 @@ export default function CheckoutPage() {
             });
             markerInstance.current = marker;
           } catch (err) {
-            console.error("Map load failed", err);
+            console.error("Map load failed.", err);
+            mapInstance.current = null;
+            markerInstance.current = null;
           }
         }
       }
@@ -198,7 +230,6 @@ export default function CheckoutPage() {
     return () => clearInterval(checkGoogleInterval);
   }, [deliveryMethod, addressDetails.lat, addressDetails.lng, updateAddressFromCoords]);
 
-  // Center map on update
   useEffect(() => {
     if (mapInstance.current && markerInstance.current && addressDetails.lat && addressDetails.lng) {
       const pos = { lat: addressDetails.lat, lng: addressDetails.lng };
@@ -208,18 +239,23 @@ export default function CheckoutPage() {
     }
   }, [addressDetails.lat, addressDetails.lng]);
 
+  // FIXED MOBILE GEOLOCATION
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
-      toast.error("Geolocation not supported.");
+      toast.error("Geolocation not supported by your browser.");
       return;
     }
+
     setIsCalculating(true);
+    // Bypassing navigator.permissions entirely to guarantee it works on Mobile Safari
     navigator.geolocation.getCurrentPosition(
       (pos) => updateAddressFromCoords(pos.coords.latitude, pos.coords.longitude),
-      () => {
-        toast.error("Please enable location permissions.");
+      (error) => {
+        console.warn("Location error:", error);
+        toast.error("Please allow location access in your browser settings.");
         setIsCalculating(false);
-      }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 
@@ -229,7 +265,6 @@ export default function CheckoutPage() {
 
     if (!session) {
       toast.error("Please log in to checkout.");
-      sessionStorage.setItem("checkoutState", JSON.stringify({ phone, addressDetails, deliveryMethod }));
       navigate({ to: "/auth", search: { redirect: "/checkout" } as any });
       return;
     }
@@ -266,7 +301,7 @@ export default function CheckoutPage() {
       if (!response.ok) throw new Error(resData.error || "Checkout failed.");
 
       clear();
-      sessionStorage.removeItem("checkoutState");
+      localStorage.removeItem(checkoutDraftKey); // ONLY CLEAR DRAFT ON SUCCESS
       toast.success(resData.message || "Prompt sent! Enter your PIN.");
       setOrderSuccess(true);
     } catch (err: any) {
@@ -278,7 +313,7 @@ export default function CheckoutPage() {
 
   if (orderSuccess) {
     return (
-      <div className="max-w-xl mx-auto px-6 py-32 text-center">
+      <div className="max-w-xl mx-auto px-6 py-32 text-center text-foreground">
         <CheckCircle2 className="w-16 h-16 mx-auto text-emerald-600" />
         <h1 className="font-display text-4xl mt-6">Thank you!</h1>
         <p className="text-muted-foreground mt-2">Check your phone to complete payment.</p>
@@ -288,86 +323,89 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-12 sm:px-6 sm:py-16">
-      <h1 className="font-display text-4xl mb-10">Checkout</h1>
+    <div className="max-w-6xl mx-auto px-4 py-12 text-foreground sm:px-6 sm:py-16">
+      <h1 className="mb-10 font-display text-4xl text-foreground">Checkout</h1>
       <div className="grid md:grid-cols-2 gap-12">
         <form onSubmit={handlePlaceOrder} className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
-            <button type="button" onClick={() => setDeliveryMethod('delivery')} className={`p-4 border rounded-lg flex items-center justify-center gap-2 ${deliveryMethod === 'delivery' ? 'border-black bg-neutral-100 font-medium' : 'border-neutral-200 text-muted-foreground'}`}>
+            <button type="button" onClick={() => setDeliveryMethod('delivery')} className={`flex items-center justify-center gap-2 rounded-lg border p-4 transition ${deliveryMethod === 'delivery' ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm' : 'border-border bg-background text-foreground hover:bg-muted'}`}>
               <Truck className="w-5 h-5" /> Same Day Delivery
             </button>
-            <button type="button" onClick={() => setDeliveryMethod('pickup')} className={`p-4 border rounded-lg flex items-center justify-center gap-2 ${deliveryMethod === 'pickup' ? 'border-black bg-neutral-100 font-medium' : 'border-neutral-200 text-muted-foreground'}`}>
+            <button type="button" onClick={() => setDeliveryMethod('pickup')} className={`flex items-center justify-center gap-2 rounded-lg border p-4 transition ${deliveryMethod === 'pickup' ? 'border-primary bg-primary text-primary-foreground font-semibold shadow-sm' : 'border-border bg-background text-foreground hover:bg-muted'}`}>
               <Store className="w-5 h-5" /> Pickup Mtaani
             </button>
           </div>
 
-          {/* RENDERS ONLY IF DELIVERY IS SELECTED */}
           {deliveryMethod === 'delivery' && (
             <>
               <div className="space-y-3">
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <MapPin className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
-                    <input ref={addressInputRef} placeholder="Search building, estate..." className="w-full border rounded-lg pl-10 pr-3 py-2.5 outline-none focus:ring-1 focus:ring-black" />
+                    {/* Explicit Dark Mode Text Support */}
+                    <input ref={addressInputRef} placeholder="Search building, estate..." className="w-full border border-border bg-background text-foreground placeholder:text-muted-foreground rounded-lg pl-10 pr-3 py-2.5 outline-none focus:ring-1 focus:ring-accent" />
                   </div>
-                  <button type="button" onClick={handleGetLocation} disabled={isCalculating} className="border border-neutral-200 px-4 py-2.5 rounded-lg flex items-center gap-2 hover:bg-neutral-100 transition disabled:opacity-50">
+                  <button type="button" onClick={handleGetLocation} disabled={isCalculating} className="border border-border bg-background text-foreground px-4 py-2.5 rounded-lg flex items-center gap-2 hover:bg-muted transition disabled:opacity-50">
                     {isCalculating ? <Loader2 className="w-5 h-5 animate-spin" /> : <LocateFixed className="w-5 h-5" />}
                     <span className="hidden sm:inline text-sm font-medium">Auto-Detect</span>
                   </button>
                 </div>
                 <div className="text-xs text-muted-foreground px-1">Drag the marker to pinpoint your exact gate.</div>
-                <div ref={mapRef} className="w-full h-64 rounded-lg border border-neutral-200 bg-neutral-50 overflow-hidden" />
+                <div ref={mapRef} className="w-full h-64 rounded-lg border border-border bg-muted overflow-hidden" />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">M-Pesa Number</label>
-                <input type="tel" placeholder="e.g. 0700000000" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full border rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-black" required />
+                <label className="block text-sm font-medium mb-1 text-foreground">M-Pesa Number</label>
+                {/* Explicit Dark Mode Text Support */}
+                <input type="tel" placeholder="e.g. 0700000000" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full border border-border bg-background text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-accent" required />
               </div>
 
-              {/* PAY BUTTON: Only displays for delivery, disabled until location is set */}
               <button
                 type="submit"
                 disabled={loading || isCalculating || isAuthLoading || !addressDetails.lat}
-                className="w-full py-4 bg-black text-white font-medium rounded-lg hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full py-4 bg-primary text-primary-foreground font-medium rounded-lg hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Sending STK Prompt...</> : isCalculating ? "Calculating Delivery..." : `Pay KES ${total.toLocaleString()}`}
               </button>
             </>
           )}
 
-          {/* RENDERS ONLY IF PICKUP IS SELECTED */}
           {deliveryMethod === 'pickup' && (
-            <div className="border border-neutral-200 p-4 rounded-lg bg-neutral-50">
-              <p className="text-sm mb-4 text-neutral-700">Pickup Mtaani coordinated via agent. Click below to confirm pickup location:</p>
+            <div className="border border-border p-4 rounded-lg bg-card text-card-foreground">
+              <p className="text-sm mb-4 text-muted-foreground">Pickup Mtaani coordinated via agent. Click below to confirm pickup location:</p>
               <div className="flex gap-2">
                 <a href="https://wa.me/+254115565903" target="_blank" rel="noreferrer" className="flex-1 bg-[#25D366] text-white p-3 rounded-lg text-center font-medium">WhatsApp</a>
-                <a href="tel:+254115565903" className="flex-1 bg-neutral-200 text-neutral-800 p-3 rounded-lg text-center font-medium">Call</a>
+                <a href="tel:+254115565903" className="flex-1 bg-muted text-foreground p-3 rounded-lg text-center font-medium hover:bg-muted/80">Call</a>
               </div>
             </div>
           )}
         </form>
 
-        <aside className="bg-neutral-50 border border-neutral-200 rounded-xl p-6 h-fit">
-          <h2 className="text-2xl font-display mb-4">Order summary</h2>
+        {/* ORDER SUMMARY (Fully Dark Mode Compatible) */}
+        <aside className="h-fit rounded-xl border border-border bg-card p-6 text-card-foreground shadow-sm">
+          <h2 className="mb-4 text-2xl font-display text-card-foreground">Order summary</h2>
           {detailed.length === 0 ? (
             <p className="text-sm text-muted-foreground">Your cart is empty.</p>
           ) : (
-            <div className="divide-y divide-neutral-200">
+            <div className="divide-y divide-border">
               {detailed.map((it: any) => (
                 <div key={it.variantId} className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 py-3 text-sm">
-                  <img src={it.variant.image} alt={it.name} className="h-14 w-14 rounded-md object-cover bg-neutral-200" />
+                  <img src={it.variant.image} alt={it.name} className="h-14 w-14 rounded-md object-cover bg-muted" />
                   <div className="min-w-0">
-                    <div className="truncate font-medium text-neutral-800">{it.name}</div>
+                    <div className="truncate font-medium text-card-foreground">{it.name}</div>
                     <div className="text-muted-foreground text-xs">Qty: {it.qty}</div>
                   </div>
-                  <span className="shrink-0 font-medium tabular-nums">KES {(it.price * it.qty).toLocaleString()}</span>
+                  <span className="shrink-0 font-medium tabular-nums text-card-foreground">KES {(it.price * it.qty).toLocaleString()}</span>
                 </div>
               ))}
             </div>
           )}
-          <div className="pt-4 border-t border-neutral-200 mt-4 space-y-2 text-sm">
-            <div className="flex justify-between text-neutral-600"><span>Subtotal</span><span>KES {subtotal.toLocaleString()}</span></div>
-            <div className="flex justify-between text-neutral-600">
+          <div className="pt-4 border-t border-border mt-4 space-y-2 text-sm">
+            <div className="flex justify-between text-card-foreground">
+              <span>Subtotal</span>
+              <span className="font-medium">KES {subtotal.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between text-card-foreground">
               <span>Delivery Fee</span>
               <span>
                 {deliveryMethod === 'pickup'
@@ -378,7 +416,10 @@ export default function CheckoutPage() {
                 }
               </span>
             </div>
-            <div className="pt-2 border-t border-neutral-200 flex justify-between font-bold text-base text-black"><span>Total</span><span>KES {total.toLocaleString()}</span></div>
+            <div className="pt-2 border-t border-border flex justify-between font-bold text-base text-card-foreground">
+              <span>Total</span>
+              <span className="font-bold">KES {total.toLocaleString()}</span>
+            </div>
           </div>
         </aside>
       </div>

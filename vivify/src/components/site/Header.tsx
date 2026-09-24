@@ -39,8 +39,13 @@ export function Header() {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
 
     // Listen for auth changes (logins, logouts)
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
+      if (event === "SIGNED_IN") {
+        toast.success("Signed in successfully.");
+      } else if (event === "SIGNED_OUT") {
+        toast.success("Signed out successfully.");
+      }
     });
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -56,7 +61,7 @@ export function Header() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setProfileOpen(false);
-    toast.success("Successfully logged out. Your old token has been cleared!");
+    toast.success("You are logged out.");
     navigate({ to: "/" });
   };
 
@@ -73,7 +78,7 @@ export function Header() {
           <img
             src={logo}
             alt="Vivify"
-            className="h-32 max-w-full w-auto -my-8 object-contain object-left sm:h-40 md:h-52 md:-my-12 dark:invert dark:brightness-200"
+            className="h-40 max-w-full w-auto -my-8 object-contain object-left sm:h-44 md:h-52 md:-my-12 dark:invert dark:brightness-200"
           />
         </Link>
 
